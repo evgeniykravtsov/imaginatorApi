@@ -5,9 +5,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 )
 
 func main() {
@@ -17,6 +17,7 @@ func main() {
 	existsDir("./images")
 
 	e.POST("/saveImage", save)
+	e.GET("/getImageById", getImage)
 	e.Logger.Fatal(e.Start(":1323"))
 }
 
@@ -36,12 +37,8 @@ func save (c echo.Context) error {
 	defer src.Close()
 
 	id := uuid.New()
-	fileTypeSlice := strings.Split(image.Filename, ".")
-	var fileType string
-	if len(fileTypeSlice) == 2 {
-		fileType = fmt.Sprintf("." + fileTypeSlice[1] )
-	}
-	path:= fmt.Sprintf("images/" + id.String()  + fileType)
+	existsDir(fmt.Sprintf("./images/" + id.String()))
+	path:= fmt.Sprintf("images/" + id.String() + "/"  + image.Filename)
 	dst, errCreate := os.Create(path)
 
 	if errCreate != nil {
@@ -55,6 +52,21 @@ func save (c echo.Context) error {
 	}
 
 	return c.String(http.StatusOK, "Image save! " + "ID is "+ id.String())
+}
+
+func getImage (c echo.Context) error {
+	id := c.QueryParam("id")
+	dirs, err := ioutil.ReadDir("./images/" + id)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "We have not image for this id!")
+	}
+
+	if len(dirs) == 1 {
+		fileName := dirs[0].Name()
+		return c.File("./images/" + id + "/" + fileName)
+	} else {
+		return c.String(http.StatusBadRequest, "OK")
+	}
 }
 
 func existsDir(path string)  {
